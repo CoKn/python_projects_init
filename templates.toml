@@ -1,0 +1,59 @@
+# Registry describing external module sources and mix-and-match templates.
+# Scripts in init.sh can parse this file to assemble tailored projects.
+
+[settings]
+module_cache_dir = ".module_cache"          # Where cloned modules are cached locally
+default_branch   = "main"                   # Used when templates omit an explicit ref
+
+
+# --- Module catalog -------------------------------------------------------
+# Each module lives in its own repository. Fields:
+#   repository  - git URL
+#   ref         - branch/tag/commit (falls back to settings.default_branch)
+#   subdir      - relative path inside the repo to copy/install
+#   target      - destination path inside the generated project
+#   type        - rough classification to aid validation/compatibility checks
+#   compat      - free-form tags for template solvers (e.g. ui:streamlit)
+#   description - short human readable summary
+
+
+# [modules.supabase_adapter]
+# repository  = "https://github.com/example-org/supabase-adapter.git"
+# ref         = "v0.5.0"
+# subdir      = "adapter"
+# target      = "src/adapters/persistence/supabase"
+# type        = "persistence"
+# compat      = ["storage:supabase", "requires:supabase-key"]
+# description = "CRUD adapter implementing PersistencePort against Supabase"
+
+
+# --- Template definitions -------------------------------------------------
+# Templates link multiple modules, environment artifacts, and hook scripts.
+# Fields:
+#   modules      - ordered list mapping to entries under [modules.*]
+#   env_files    - optional .env templates to copy into the project root
+#   hooks.pre    - scripts executed before module copy (e.g. cleanup)
+#   hooks.post   - scripts executed after assembly (e.g. registration)
+#   variables    - arbitrary key/value pairs surfaced to hooks (JSON env)
+#   overrides.*  - per-module adjustments (different ref, target, etc.)
+
+# [templates.streamlit_supabase]
+# display_name = "Streamlit + Supabase"
+# description  = "Streamlit UI backed by Supabase persistence"
+# modules      = [
+# 	"core_services",
+# 	"streamlit_ui",
+# 	"supabase_adapter",
+# 	"smoke_tests"
+# ]
+# env_files    = ["templates/env/streamlit_supabase.example"]
+# hooks.pre    = ["scripts/hooks/ensure_uv.sh"]
+# hooks.post   = ["scripts/hooks/register_supabase.py"]
+# variables    = { PERSISTENCE_BACKEND = "supabase", REQUIREMENTS_EXTRA = "supabase" }
+
+#	[templates.streamlit_supabase.overrides.supabase_adapter]
+#	ref      = "v0.5.2"           # Pin newer adapter version for this combo
+#	settings = { table = "app_records", schema = "public" }
+
+#	[templates.streamlit_supabase.overrides.streamlit_ui]
+#	target = "src/app/ui/streamlit"

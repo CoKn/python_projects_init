@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+TEMPLATES_FILE="templates.toml"
+
 DEFAULT_PY_VERSION="3.10"
 USER_SPECIFIED_VERSION="${1:-}"
 
@@ -23,6 +25,46 @@ resolve_python_interpreter() {
 
     echo "Python interpreter $candidate not found on PATH. Please install Python $version or update the PATH." >&2
     return 1
+}
+
+list_available_templates() {
+    [[ -f "$TEMPLATES_FILE" ]] || return
+    awk '
+        /^\[templates\./ {
+            name = $0
+            sub(/\[templates\./, "", name)
+            sub(/\].*/, "", name)
+            printf "  - %s\n", name
+        }
+    ' "$TEMPLATES_FILE"
+}
+
+prompt_for_template() {
+    [[ -f "$TEMPLATES_FILE" ]] || return
+
+    local has_templates
+    has_templates=$(list_available_templates || true)
+    [[ -n "$has_templates" ]] || return
+
+    echo
+    echo "Available project templates from $TEMPLATES_FILE:"
+    printf "%s\n" "$has_templates"
+
+    read -r -p "Apply one of these templates? [y/N] " use_template
+    [[ "$use_template" =~ ^[Yy]$ ]] || return
+
+    read -r -p "Template name (exactly as listed above): " selected_template
+    if [[ -z "$selected_template" ]]; then
+        echo "No template selected; continuing without applying a template."
+        return
+    fi
+
+    echo "Selected template: $selected_template"
+    if [[ -x scripts/apply_template.sh ]]; then
+        scripts/apply_template.sh "$selected_template" "$TEMPLATES_FILE"
+    else
+        echo "scripts/apply_template.sh not found or not executable; please implement template handling."
+    fi
 }
 
 UV_AVAILABLE=0
@@ -87,3 +129,5 @@ else
     fi
 
 fi
+
+prompt_for_template
